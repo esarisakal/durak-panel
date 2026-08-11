@@ -35,7 +35,7 @@ def renklendir(durum):
         return "background-color: #f8d7da; color: #721c24"
 
 st.dataframe(
-    taksiler.style.applymap(renklendir, subset=["Durum"]),
+    taksiler.style.map(renklendir, subset=["Durum"]),
     use_container_width=True,
     hide_index=True
 )
