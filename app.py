@@ -7,12 +7,15 @@ st.set_page_config(page_title="Durak Paneli", page_icon="🚕", layout="centered
 st.title("🚕 Durak Paneli")
 st.caption("Duraktaki taksilerin anlık durumu")
 
-taksiler = pd.DataFrame({
-    "Plaka": ["34 AB 123", "34 CD 456", "34 EF 789"],
-    "Şoför": ["Ahmet", "Mehmet", "Ali"],
-    "Durum": ["Boşta", "Dolu", "Boşta"],
-    "Sıra": [1, 2, 3]
-})
+if "taksiler" not in st.session_state:
+    st.session_state.taksiler = pd.DataFrame({
+        "Plaka": ["34 AB 123", "34 CD 456", "34 EF 789"],
+        "Şoför": ["Ahmet", "Mehmet", "Ali"],
+        "Durum": ["Boşta", "Dolu", "Boşta"],
+        "Sıra": [1, 2, 3]
+    })
+
+taksiler = st.session_state.taksiler
 
 bosta_sayisi = (taksiler["Durum"] == "Boşta").sum()
 dolu_sayisi = (taksiler["Durum"] == "Dolu").sum()
@@ -24,7 +27,7 @@ col3.metric("Dolu", int(dolu_sayisi))
 
 st.divider()
 
-taksiler = taksiler.sort_values("Sıra")
+taksiler_sirali = taksiler.sort_values("Sıra")
 
 def renklendir(durum):
     if durum == "Boşta":
@@ -33,15 +36,15 @@ def renklendir(durum):
         return "background-color: #f8d7da; color: #721c24"
 
 st.dataframe(
-    taksiler.style.map(renklendir, subset=["Durum"]),
+    taksiler_sirali.style.map(renklendir, subset=["Durum"]),
     use_container_width=True,
     hide_index=True
 )
 
 st.divider()
-st.subheader("📍 Müşteri Adresi")
+st.subheader("📍 Müşteri Talebi")
 
-adres = st.text_input("Adres girin (örn: Kadıköy Moda, İstanbul)")
+adres = st.text_input("Müşteri adresi (örn: Kadıköy Moda, İstanbul)")
 
 if adres:
     url = "https://nominatim.openstreetmap.org/search"
@@ -58,5 +61,18 @@ if adres:
 
         konum_df = pd.DataFrame({"lat": [lat], "lon": [lon]})
         st.map(konum_df, zoom=14)
+
+        bostakiler = taksiler[taksiler["Durum"] == "Boşta"].sort_values("Sıra")
+
+        if not bostakiler.empty:
+            siradaki = bostakiler.iloc[0]
+            st.info(f"Sıradaki boş taksi: {siradaki['Plaka']} ({siradaki['Şoför']})")
+
+            if st.button(f"🚕 {siradaki['Plaka']} plakalı taksiyi bu adrese gönder"):
+                idx = siradaki.name
+                st.session_state.taksiler.loc[idx, "Durum"] = "Dolu"
+                st.rerun()
+        else:
+            st.warning("Şu an boşta taksi yok.")
     else:
         st.warning("Adres bulunamadı, biraz daha farklı yazmayı dene.")
