@@ -15,6 +15,12 @@ if "taksiler" not in st.session_state:
         "Sıra": [1, 2, 3]
     })
 
+if "son_guncelleme_id" not in st.session_state:
+    st.session_state.son_guncelleme_id = None
+
+if "son_mesaj" not in st.session_state:
+    st.session_state.son_mesaj = None
+
 taksiler = st.session_state.taksiler
 
 bosta_sayisi = (taksiler["Durum"] == "Boşta").sum()
@@ -42,11 +48,34 @@ st.dataframe(
 )
 
 st.divider()
-st.subheader("📍 Müşteri Talebi")
+st.subheader("📨 Telegram Mesajları")
 
-adres = st.text_input("Müşteri adresi (örn: Kadıköy Moda, İstanbul)")
+TOKEN = st.secrets["TELEGRAM_TOKEN"]
 
-if adres:
+if st.button("🔄 Yeni mesajları kontrol et"):
+    url = f"https://api.telegram.org/bot{TOKEN}/getUpdates"
+    params = {}
+    if st.session_state.son_guncelleme_id:
+        params["offset"] = st.session_state.son_guncelleme_id + 1
+
+    yanit = requests.get(url, params=params)
+    veri = yanit.json()
+
+    mesajlar = [g for g in veri.get("result", []) if "message" in g and "text" in g["message"]]
+
+    if mesajlar:
+        son = mesajlar[-1]
+        st.session_state.son_guncelleme_id = son["update_id"]
+        st.session_state.son_mesaj = son["message"]["text"]
+        gonderen = son["message"]["from"].get("first_name", "Bilinmeyen")
+        st.success(f"{gonderen} adlı kullanıcıdan yeni mesaj: \"{st.session_state.son_mesaj}\"")
+    else:
+        st.info("Yeni mesaj yok.")
+
+if st.session_state.son_mesaj:
+    adres = st.session_state.son_mesaj
+    st.write(f"İşlenecek adres: **{adres}**")
+
     url = "https://nominatim.openstreetmap.org/search"
     params = {"q": adres, "format": "json", "limit": 1}
     headers = {"User-Agent": "durak-panel-prototip"}
@@ -68,11 +97,12 @@ if adres:
             siradaki = bostakiler.iloc[0]
             st.info(f"Sıradaki boş taksi: {siradaki['Plaka']} ({siradaki['Şoför']})")
 
-            if st.button(f"🚕 {siradaki['Plaka']} plakalı taksiyi bu adrese gönder"):
+            if st.button(f"🚕 {siradaki['Plaka']} plakalı taksiyi gönder", key="ata_buton"):
                 idx = siradaki.name
                 st.session_state.taksiler.loc[idx, "Durum"] = "Dolu"
+                st.session_state.son_mesaj = None
                 st.rerun()
         else:
             st.warning("Şu an boşta taksi yok.")
     else:
-        st.warning("Adres bulunamadı, biraz daha farklı yazmayı dene.")
+        st.warning("Adres bulunamadı, mesajı farklı yazmayı dene.")
