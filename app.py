@@ -48,6 +48,21 @@ st.dataframe(
 )
 
 st.divider()
+st.subheader("✅ Yolculuk Tamamlama")
+
+dolu_taksiler = taksiler[taksiler["Durum"] == "Dolu"]
+
+if not dolu_taksiler.empty:
+    for idx, row in dolu_taksiler.iterrows():
+        if st.button(f"✅ {row['Plaka']} yolculuğu tamamladı", key=f"tamamla_{idx}"):
+            yeni_sira = st.session_state.taksiler["Sıra"].max() + 1
+            st.session_state.taksiler.loc[idx, "Durum"] = "Boşta"
+            st.session_state.taksiler.loc[idx, "Sıra"] = yeni_sira
+            st.rerun()
+else:
+    st.caption("Şu an yolculukta olan taksi yok.")
+
+st.divider()
 st.subheader("📨 Telegram Mesajları")
 
 TOKEN = st.secrets["TELEGRAM_TOKEN"]
@@ -90,6 +105,7 @@ if st.session_state.son_mesaj:
 
         konum_df = pd.DataFrame({"lat": [lat], "lon": [lon]})
         st.map(konum_df, zoom=14)
+        st.caption("📍 Bu nokta yaklaşık bir konum (cadde seviyesinde). Kapı numarası için yukarıdaki yazılı adrese bakılmalı.")
 
         bostakiler = taksiler[taksiler["Durum"] == "Boşta"].sort_values("Sıra")
 
